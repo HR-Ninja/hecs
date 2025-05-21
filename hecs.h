@@ -25,7 +25,6 @@ typedef struct {
 } ComponentArray;
 
 static ComponentArray components[MAX_COMPONENTS];
-static size_t component_usage[MAX_COMPONENTS] = {0};
 
 Entity create_entity();
 void destroy_entity(Entity e);
@@ -43,16 +42,13 @@ Entity create_entity() {
     }
 
     static Entity count = 0;
-    if (count >= MAX_ENTITIES) {
-        fprintf(stderr, "Max entity count reached.\n");
-        exit(EXIT_FAILURE);
-    }
+    assert(count < MAX_ENTITIES);
 
     return count++;
 }
 
 void destroy_entity(Entity e) {
-    if (e >= MAX_ENTITIES) return;
+    assert(e < MAX_ENTITIES);
 
     // Remove all components by clearing mask
     Mask mask = entity_mask[e];
@@ -63,11 +59,14 @@ void destroy_entity(Entity e) {
     }
 
     entity_mask[e] = 0;
+    assert(free_count < MAX_ENTITIES);
     free_list[free_count++] = e;
 }
 
 Component register_component(const size_t size) {
     static Component id = 0;
+    assert(id < MAX_COMPONENTS);  // Check BEFORE use
+
     components[id].data = NULL;
     components[id].size = size;
     return id++;
@@ -80,31 +79,27 @@ void attach_component(const Entity e, const Component c, void* data) {
         components[c].data = calloc(MAX_ENTITIES, components[c].size);
     }
 
+    assert(data != NULL);
     void* dest = (char*)components[c].data + e * components[c].size;
     memcpy(dest, data, components[c].size);
     entity_mask[e] |= 1ULL << c;
-
-    component_usage[c]++;
 }
 
 void remove_component(const Entity e, const Component c) {
     assert(e < MAX_ENTITIES && c < MAX_COMPONENTS);
     
-    void* dest = (char*)components[c].data + e * components[c].size;
-    memset(dest, 0, components[c].size);
-    entity_mask[e] &= ~(1ULL << c);
-
-   if (component_usage[c] > 0) {
-        component_usage[c]--;
-        if (component_usage[c] == 0) {
-            free(components[c].data);
-            components[c].data = NULL;
-        }
+    if (components[c].data) {
+        void* dest = (char*)components[c].data + e * components[c].size;
+        memset(dest, 0, components[c].size);
     }
+
+    entity_mask[e] &= ~(1ULL << c);
 }
 
 void* get_component(const Entity e, const Component c) {
     assert(e < MAX_ENTITIES && c < MAX_COMPONENTS);
+    assert(HAS_COMPONENT(entity_mask[e], c));
+    assert(components[c].data != NULL);
     return (char*)components[c].data + e * components[c].size;
 }
 
@@ -114,5 +109,6 @@ void free_components() {
             free(components[i].data);
             components[i].data = NULL;
         }
+        components[i].size = 0;
     }
 }
