@@ -8,7 +8,6 @@ HECS is a small, efficient, and standalone Entity-Component System (ECS) impleme
 - ✅ Lazy, on-demand component memory allocation
 - ✅ Fast SoA layout for cache efficiency
 - ✅ Bitmask-based component querying
-- ✅ Component memory automatically freed when no longer in use
 - ✅ Fits in a single header file
 
 ## Usage
